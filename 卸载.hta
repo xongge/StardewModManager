@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>卸载 星露谷 Mod 管理器</title>
+<hta:application
+    id="app"
+    applicationname="StardewModManagerUninstall"
+    border="thin"
+    caption="yes"
+    maximizebutton="no"
+    minimizebutton="no"
+    scroll="no"
+    singleinstance="yes"
+    sysmenu="yes" />
+<style type="text/css">
+  html, body { margin:0; padding:0; height:100%; }
+  body {
+    background:#12161d; color:#d6deeb;
+    font-family:"Microsoft YaHei UI","Microsoft YaHei",sans-serif; font-size:13px;
+    overflow:hidden;
+  }
+  #head { height:70px; background:#171c25; border-bottom:1px solid #2c3542; padding:16px 22px; }
+  #head .t { font-size:18px; font-weight:bold; color:#ff6b6b; }
+  #head .s { margin-top:4px; color:#8895a7; font-size:12px; }
+  #body { padding:18px 22px; }
+  .box { background:#1b212c; border:1px solid #2c3542; padding:14px; margin-bottom:14px; line-height:22px; }
+  .hint { color:#8895a7; font-size:12px; }
+  .btn {
+    background:#202836; border:1px solid #2c3542; color:#d6deeb;
+    padding:8px 16px; cursor:pointer; font-family:inherit; font-size:13px; margin-right:8px;
+  }
+  .btn:hover { background:#2b3646; }
+  .btn.danger { background:#a83027; border:none; color:#fff; font-weight:bold; }
+  .btn.danger:hover { background:#d8483a; }
+  .ok { color:#4cc38a; }
+</style>
+</head>
+<body>
+  <div id="head">
+    <div class="t">卸载 星露谷 Mod 管理器</div>
+    <div class="s">Stardew Valley Mod Manager · 卸载程序</div>
+  </div>
+  <div id="body">
+    <div class="box">
+      <div>安装目录：<br /><b id="dirText">…</b></div>
+      <div class="hint" style="margin-top:8px;">
+        卸载会删除该目录下的全部文件，包括 <b>config.json</b>（游戏/Mod 目录、AI 接口设置）、
+        汉化缓存（name_map.json / label_map.json）与日志。<br />
+        如果你以后还想用，建议先把这些文件复制到别处备份。
+      </div>
+    </div>
+    <div class="box">
+      <label><input type="checkbox" id="keepData" /> 保留配置文件与汉化缓存（只删程序本体）</label>
+      <div class="hint" style="margin-top:6px;">
+        勾选后只删除程序代码与图标，保留 config.json、name_map.json、label_map.json、logs 与 smapi_update。
+      </div>
+    </div>
+    <div>
+      <button class="btn danger" onclick="doUninstall()">开始卸载</button>
+      <button class="btn" onclick="window.close()">取消</button>
+    </div>
+    <div id="status" class="hint" style="margin-top:14px;"></div>
+  </div>
+
+<script language="JScript">
+var fso = new ActiveXObject("Scripting.FileSystemObject");
+var sh  = new ActiveXObject("WScript.Shell");
+var APPNAME = "星露谷 Mod 管理器";
+var UNINSTALL_KEY = "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\StardewModManager";
+var KEEP = ["config.json", "name_map.json", "label_map.json", "logs", "smapi_update", "updates_cache.json"];
+
+function appDir(){
+  var p = unescape(location.pathname).replace(/\//g, "\\");
+  if (p.charAt(0) === "\\") { p = p.substring(1); }
+  var i = p.lastIndexOf("\\");
+  return i > 0 ? p.substring(0, i) : p;
+}
+function log(text){ document.getElementById("status").innerHTML += text + "<br />"; }
+
+function removeShortcuts(){
+  var names = [APPNAME + ".lnk"];
+  var places = [];
+  try { places.push(sh.SpecialFolders("Desktop")); } catch (e) {}
+  try { places.push(sh.SpecialFolders("Programs") + "\\" + APPNAME); } catch (e) {}
+  for (var i = 0; i < places.length; i++){
+    for (var j = 0; j < names.length; j++){
+      var path = places[i] + "\\" + names[j];
+      try { if (fso.FileExists(path)){ fso.DeleteFile(path, true); log("已删除快捷方式：" + path); } } catch (e) {}
+    }
+  }
+  try {
+    var menuDir = sh.SpecialFolders("Programs") + "\\" + APPNAME;
+    if (fso.FolderExists(menuDir)){ fso.DeleteFolder(menuDir, true); log("已删除开始菜单文件夹"); }
+  } catch (e) {}
+}
+
+function doUninstall(){
+  var dir = appDir();
+  if (!confirm("确定要卸载吗？\n\n安装目录：" + dir + "\n\n程序文件将被删除。")){ return; }
+  var keepData = document.getElementById("keepData").checked;
+  log("开始卸载…");
+  removeShortcuts();
+  try { sh.RegDelete(UNINSTALL_KEY + "\\"); log("已移除「程序和功能」里的条目"); } catch (e) {}
+
+  var failed = 0;
+  var keep = {};
+  if (keepData){ for (var k = 0; k < KEEP.length; k++){ keep[KEEP[k]] = true; } }
+
+  // 逐个删除，避免删到正在运行的脚本自身
+  var items = new Enumerator(fso.GetFolder(dir).Files);
+  var toDelete = [];
+  for (; !items.atEnd(); items.moveNext()){ toDelete.push(items.item().Path); }
+  var subs = new Enumerator(fso.GetFolder(dir).SubFolders);
+  var dirsToDelete = [];
+  for (; !subs.atEnd(); subs.moveNext()){ dirsToDelete.push(subs.item().Path); }
+
+  for (var i = 0; i < toDelete.length; i++){
+    var name = fso.GetFileName(toDelete[i]);
+    if (keepData && keep[name]){ continue; }
+    try { fso.DeleteFile(toDelete[i], true); } catch (e) { failed++; }
+  }
+  for (var d = 0; d < dirsToDelete.length; d++){
+    var dname = fso.GetFileName(dirsToDelete[d]);
+    if (keepData && keep[dname]){ continue; }
+    try { fso.DeleteFolder(dirsToDelete[d], true); } catch (e) { failed++; }
+  }
+
+  document.getElementById("status").innerHTML =
+    "<span class='ok'>程序文件已删除" + (failed ? "（有 " + failed + " 项被占用，稍后会自动清理）" : "") + "</span><br />" +
+    (keepData ? "配置与汉化缓存已保留。<br />" : "") +
+    "窗口即将关闭。";
+
+  // 让一个隐藏的 cmd 在 2 秒后把剩下的空目录连同本卸载程序一起删掉
+  try {
+    sh.Run("cmd /c ping -n 3 127.0.0.1 >nul & rmdir /s /q \"" + dir + "\"", 0, false);
+  } catch (e) {}
+  setTimeout(function(){ window.close(); }, 1500);
+}
+
+window.onload = function(){
+  window.resizeTo(620, 480);
+  try { window.moveTo((screen.availWidth - 620) / 2, (screen.availHeight - 480) / 2); } catch (e) {}
+  document.getElementById("dirText").innerHTML = appDir();
+};
+</script>
+</body>
+</html>
