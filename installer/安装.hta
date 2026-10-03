@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>星露谷 Mod 管理器 - 安装</title>
+<hta:application
+    id="app"
+    applicationname="StardewModManagerSetup"
+    border="thin"
+    caption="yes"
+    maximizebutton="no"
+    minimizebutton="yes"
+    scroll="no"
+    singleinstance="yes"
+    icon="payload\StardewModManager\icon.ico"
+    sysmenu="yes"
+    windowstate="normal" />
+<style type="text/css">
+  html, body { margin:0; padding:0; height:100%; }
+  body {
+    background:#12161d; color:#d6deeb;
+    font-family:"Microsoft YaHei UI","Microsoft YaHei",sans-serif; font-size:13px;
+    overflow:hidden;
+  }
+  #head {
+    height:88px; background:#171c25; border-bottom:1px solid #2c3542;
+    padding:14px 22px; position:relative;
+  }
+  #head img { position:absolute; left:22px; top:16px; width:56px; height:56px; }
+  #head .t { margin-left:74px; font-size:19px; font-weight:bold; color:#4cc38a; }
+  #head .s { margin-left:74px; margin-top:5px; color:#8895a7; font-size:12px; }
+  #body { padding:16px 22px 0 22px; height:322px; overflow:auto; }
+  #foot {
+    position:absolute; bottom:0; left:0; right:0; height:64px;
+    background:#171c25; border-top:1px solid #2c3542; padding:14px 22px;
+  }
+  h3 { margin:0 0 8px 0; font-size:15px; color:#d6deeb; }
+  .hint { color:#8895a7; font-size:12px; line-height:19px; }
+  .box { background:#1b212c; border:1px solid #2c3542; padding:14px; margin-bottom:14px; }
+  input[type=text] {
+    background:#171c25; border:1px solid #2c3542; color:#d6deeb;
+    padding:7px 9px; width:398px; font-family:inherit; font-size:13px;
+  }
+  .btn {
+    background:#202836; border:1px solid #2c3542; color:#d6deeb;
+    padding:8px 16px; cursor:pointer; font-family:inherit; font-size:13px;
+  }
+  .btn:hover { background:#2b3646; }
+  .btn.primary { background:#2f9e6b; border:none; color:#05130c; font-weight:bold; }
+  .btn.primary:hover { background:#4cc38a; }
+  .btn:disabled { color:#5b6675; background:#1a2029; cursor:default; }
+  #bar { height:14px; background:#171c25; border:1px solid #2c3542; margin-top:10px; }
+  #barfill { height:14px; width:0%; background:#2f9e6b; }
+  #log {
+    background:#171c25; border:1px solid #2c3542; color:#a9b6c6;
+    height:168px; overflow:auto; padding:8px; font-family:Consolas,monospace; font-size:12px;
+    white-space:pre-wrap;
+  }
+  .ok { color:#4cc38a; font-weight:bold; }
+  .bad { color:#ff6b6b; font-weight:bold; }
+  .warn { color:#ffd166; }
+  label { line-height:24px; }
+  .step { color:#4cc38a; }
+</style>
+</head>
+<body>
+  <div id="head">
+    <img src="payload/StardewModManager/icon.png" alt="" />
+    <div class="t">星露谷 Mod 管理器 <span style="font-size:12px;color:#8895a7;">v1.3</span></div>
+    <div class="s">Stardew Valley Mod Manager · 安装程序（免 Python 运行环境）</div>
+  </div>
+
+  <div id="body">
+    <div id="step1">
+      <h3>选择安装位置</h3>
+      <div class="box">
+        <input type="text" id="dir" />
+        <button class="btn" onclick="browse()">浏览…</button>
+        <div class="hint" style="margin-top:8px;">
+          默认装到当前用户目录，不需要管理员权限。程序已经打包成可执行文件，
+          <b>目标电脑不需要安装 Python</b>。
+        </div>
+      </div>
+      <h3>安装选项</h3>
+      <div class="box">
+        <label><input type="checkbox" id="optDesktop" checked /> 创建桌面快捷方式（带程序图标）</label><br />
+        <label><input type="checkbox" id="optStart" checked /> 创建开始菜单项</label><br />
+        <label><input type="checkbox" id="optLaunch" checked /> 安装完成后立即启动</label>
+      </div>
+      <h3>说明</h3>
+      <div class="box">
+        <div class="hint">
+          · 配置文件（游戏目录、AI 接口、颜色、汉化缓存）保存在安装目录里，卸载会一并删除<br />
+          · 卸载：控制面板「程序和功能」里选「星露谷 Mod 管理器」，或运行安装目录里的 <b>卸载.hta</b><br />
+          · 本程序为编译打包版本，不含源代码文件
+        </div>
+      </div>
+    </div>
+
+    <div id="step2" style="display:none;">
+      <h3>正在安装</h3>
+      <div class="hint" id="nowDoing">准备中…</div>
+      <div id="bar"><div id="barfill"></div></div>
+      <div id="log" style="margin-top:12px;"></div>
+    </div>
+
+    <div id="step3" style="display:none;">
+      <h3>安装完成</h3>
+      <div class="box"><div id="doneText" class="hint"></div></div>
+      <div class="box">
+        <div class="hint">
+          · 从桌面快捷方式或开始菜单启动「星露谷 Mod 管理器」<br />
+          · 打开后到「设置」里选择游戏目录与 Mod 文件夹即可开始用
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="foot">
+    <button class="btn primary" id="btnNext" onclick="next()">开始安装</button>
+    <button class="btn" id="btnCancel" onclick="quitSetup()">取消</button>
+    <span id="footHint" class="hint" style="margin-left:12px;"></span>
+  </div>
+
+<script language="JScript">
+var fso = new ActiveXObject("Scripting.FileSystemObject");
+var sh  = new ActiveXObject("WScript.Shell");
+var APPNAME = "星露谷 Mod 管理器";
+var EXENAME = "StardewModManager.exe";
+var PAYLOADNAME = "StardewModManager";
+var UNINSTALL_KEY = "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\StardewModManager";
+var state = { stage:0, dir:"", files:[], index:0, copied:0, errors:[] };
+
+function $(id){ return document.getElementById(id); }
+
+function appBase(){
+  var p = unescape(location.pathname).replace(/\//g, "\\");
+  if (p.charAt(0) === "\\") { p = p.substring(1); }
+  var i = p.lastIndexOf("\\");
+  return i > 0 ? p.substring(0, i) : p;
+}
+function payloadDir(){ return appBase() + "\\payload"; }
+
+function browse(){
+  try {
+    var shell = new ActiveXObject("Shell.Application");
+    var folder = shell.BrowseForFolder(0, "选择安装位置", 0, 0);
+    if (folder){ $("dir").value = folder.Self.Path; }
+  } catch (e) { alert("打开文件夹选择器失败：" + e.message); }
+}
+
+function collectFiles(){
+  state.files = [];
+  var root = payloadDir();
+  if (!fso.FolderExists(root)){ throw new Error("找不到 payload 目录：" + root + "\n请先把安装包完整解压，再运行安装.hta。"); }
+  walk(root, root);
+  return state.files;
+}
+function walk(dir, root){
+  var folder = fso.GetFolder(dir);
+  var subs = new Enumerator(folder.SubFolders);
+  for (; !subs.atEnd(); subs.moveNext()){ walk(subs.item().Path, root); }
+  var files = new Enumerator(folder.Files);
+  for (; !files.atEnd(); files.moveNext()){
+    var path = files.item().Path;
+    state.files.push([path, path.substring(root.length + 1)]);
+  }
+}
+function log(text, cls){
+  var box = $("log");
+  box.innerHTML += (cls ? "<span class='" + cls + "'>" + text + "</span>" : text) + "<br />";
+  box.scrollTop = box.scrollHeight;
+}
+function makeDirs(path){
+  var parent = fso.GetParentFolderName(path);
+  if (parent && !fso.FolderExists(parent)){ makeDirs(parent); }
+  if (!fso.FolderExists(path)){ fso.CreateFolder(path); }
+}
+
+function step0(){
+  state.stage = 1;
+  try {
+    state.dir = $("dir").value.replace(/\\+$/, "");
+    if (state.dir === ""){ alert("请先选择安装位置"); state.stage = 0; return; }
+    if (fso.FolderExists(state.dir) && (fso.GetFolder(state.dir).Files.Count + fso.GetFolder(state.dir).SubFolders.Count) > 0){
+      if (!confirm("目标文件夹不是空的：\n" + state.dir + "\n\n里面的同名文件会被覆盖，继续吗？")){ state.stage = 0; return; }
+    }
+    collectFiles();
+  } catch (e){
+    alert("准备安装时出错：" + e.message);
+    state.stage = 0;
+    return;
+  }
+  $("step1").style.display = "none";
+  $("step2").style.display = "block";
+  $("btnNext").disabled = true;
+  $("btnNext").innerHTML = "安装中…";
+  $("btnCancel").innerHTML = "关闭";
+  log("安装位置：" + state.dir);
+  log("共 " + state.files.length + " 个文件");
+  state.index = 0; state.copied = 0; state.errors = [];
+  setTimeout(copyStep, 20);
+}
+function copyStep(){
+  if (state.index >= state.files.length){ finishCopy(); return; }
+  var item = state.files[state.index];
+  var rel = item[1];
+  // 安装包里可运行的东西带了 .dat 后缀（防误运行），安装时还原真名
+  if (/\.dat$/i.test(rel)){ rel = rel.substring(0, rel.length - 4); }
+  var dst = state.dir + "\\" + rel;
+  try {
+    var parent = fso.GetParentFolderName(dst);
+    if (!fso.FolderExists(parent)){ makeDirs(parent); }
+    fso.CopyFile(item[0], dst, true);
+    state.copied++;
+  } catch (e){
+    state.errors.push(rel + "：" + e.message);
+    log("跳过 " + rel + "（" + e.message + "）", "bad");
+  }
+  state.index++;
+  var pct = Math.round(state.index * 100 / state.files.length);
+  $("barfill").style.width = pct + "%";
+  $("nowDoing").innerHTML = "正在复制文件 " + state.index + "/" + state.files.length + "　<span class='step'>" + pct + "%</span>";
+  if (state.index % 10 === 0 || state.index === state.files.length){ log("已复制 " + state.index + " 个文件"); }
+  setTimeout(copyStep, 1);
+}
+function finishCopy(){
+  $("nowDoing").innerHTML = "正在创建快捷方式…";
+  log("文件复制完成：" + state.copied + " 个", "ok");
+  createShortcuts();
+  writeRegistry();
+  setTimeout(function(){
+    $("barfill").style.width = "100%";
+    $("step2").style.display = "none";
+    $("step3").style.display = "block";
+    var text = "已安装到：<br /><b>" + state.dir + "</b><br />共 " + state.copied + " 个文件。";
+    if (state.errors.length){
+      text += "<br /><br /><span class='bad'>有 " + state.errors.length + " 个文件没能复制：</span><br />" + state.errors.join("<br />");
+    }
+    text += "<br /><br />主程序：StardewModManager.exe　·　卸载：卸载.hta 或控制面板「程序和功能」";
+    $("doneText").innerHTML = text;
+    $("btnNext").disabled = false;
+    $("btnNext").innerHTML = $("optLaunch").checked ? "完成并启动" : "完成";
+    state.stage = 2;
+  }, 300);
+}
+
+function shortcutName(){ return APPNAME + ".lnk"; }
+function exePath(){ return state.dir + "\\" + PAYLOADNAME + "\\" + EXENAME; }
+function createShortcuts(){
+  var target = exePath();
+  var icon = state.dir + "\\" + PAYLOADNAME + "\\icon.ico";
+  var made = 0;
+  if ($("optDesktop").checked){
+    if (makeLnk(sh.SpecialFolders("Desktop") + "\\" + shortcutName(), target, state.dir + "\\" + PAYLOADNAME, icon)){ made++; log("已创建桌面快捷方式（带程序图标）"); }
+  }
+  if ($("optStart").checked){
+    var menuDir = sh.SpecialFolders("Programs") + "\\" + APPNAME;
+    try { if (!fso.FolderExists(menuDir)){ fso.CreateFolder(menuDir); } } catch (e) {}
+    if (makeLnk(menuDir + "\\" + shortcutName(), target, state.dir + "\\" + PAYLOADNAME, icon)){ made++; log("已创建开始菜单快捷方式"); }
+    makeLnk(menuDir + "\\卸载 " + APPNAME + ".lnk", state.dir + "\\" + PAYLOADNAME + "\\卸载.hta", state.dir + "\\" + PAYLOADNAME, icon);
+  }
+  if (made === 0){ log("没有创建快捷方式（可能取消了选项）", "warn"); }
+}
+function makeLnk(lnkPath, target, workdir, icon){
+  try {
+    var lnk = sh.CreateShortcut(lnkPath);
+    lnk.TargetPath = target;
+    lnk.WorkingDirectory = workdir;
+    lnk.IconLocation = icon + ",0";
+    lnk.Description = APPNAME;
+    lnk.WindowStyle = 1;
+    lnk.Save();
+    return true;
+  } catch (e){
+    log("创建快捷方式失败：" + e.message, "bad");
+    return false;
+  }
+}
+function writeRegistry(){
+  try {
+    sh.RegWrite(UNINSTALL_KEY + "\\DisplayName", APPNAME, "REG_SZ");
+    sh.RegWrite(UNINSTALL_KEY + "\\DisplayVersion", "1.3", "REG_SZ");
+    sh.RegWrite(UNINSTALL_KEY + "\\Publisher", "Stardew Mod Manager", "REG_SZ");
+    sh.RegWrite(UNINSTALL_KEY + "\\InstallLocation", state.dir, "REG_SZ");
+    sh.RegWrite(UNINSTALL_KEY + "\\DisplayIcon", state.dir + "\\" + PAYLOADNAME + "\\icon.ico", "REG_SZ");
+    sh.RegWrite(UNINSTALL_KEY + "\\UninstallString", "mshta.exe \"" + state.dir + "\\" + PAYLOADNAME + "\\卸载.hta\"", "REG_SZ");
+    sh.RegWrite(UNINSTALL_KEY + "\\NoModify", 1, "REG_DWORD");
+    sh.RegWrite(UNINSTALL_KEY + "\\NoRepair", 1, "REG_DWORD");
+    log("已注册到「程序和功能」");
+  } catch (e){
+    log("写入注册表失败（不影响使用）：" + e.message, "warn");
+  }
+}
+
+function next(){
+  if (state.stage === 0){ step0(); }
+  else if (state.stage === 2){
+    if ($("optLaunch").checked){
+      try { sh.Run("\"" + exePath() + "\"", 1, false); } catch (e) {}
+    }
+    window.close();
+  }
+}
+function quitSetup(){
+  if (state.stage === 1 && !confirm("正在安装，确定要关闭吗？")){ return; }
+  window.close();
+}
+
+function init(){
+  window.resizeTo(700, 560);
+  try { window.moveTo((screen.availWidth - 700) / 2, (screen.availHeight - 560) / 2); } catch (e) {}
+  state.dir = sh.ExpandEnvironmentStrings("%LOCALAPPDATA%") + "\\StardewModManager";
+  $("dir").value = state.dir;
+  $("footHint").innerHTML = "安装包位置：" + appBase();
+}
+window.onload = init;
+</script>
+</body>
+</html>
