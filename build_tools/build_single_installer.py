@@ -106,17 +106,17 @@ def build_exe(payload: Path) -> Path:
     version_file.write_text(
         """# UTF-8
 VSVersionInfo(
-  ffi=FixedFileInfo(filevers=(1,3,0,0), prodvers=(1,3,0,0), mask=0x3f, flags=0x0,
+  ffi=FixedFileInfo(filevers=(1,4,0,0), prodvers=(1,4,0,0), mask=0x3f, flags=0x0,
     OS=0x40004, fileType=0x1, subtype=0x0, date=(0,0)),
   kids=[StringFileInfo([StringTable('080404B0', [
     StringStruct('CompanyName', 'Stardew Mod Manager'),
     StringStruct('FileDescription', '星露谷 Mod 管理器 安装程序'),
-    StringStruct('FileVersion', '1.3.0.0'),
+    StringStruct('FileVersion', '1.4.0.0'),
     StringStruct('InternalName', 'SDVMMSetup'),
     StringStruct('LegalCopyright', 'Copyright (C) 2026 Stardew Mod Manager. All rights reserved.'),
     StringStruct('OriginalFilename', '星露谷Mod管理器-安装程序.exe'),
     StringStruct('ProductName', '星露谷 Mod 管理器 安装程序'),
-    StringStruct('ProductVersion', '1.3.0.0')])]),
+    StringStruct('ProductVersion', '1.4.0.0')])]),
     VarFileInfo([VarStruct('Translation', [0x0804, 1200])])])
 """,
         encoding="utf-8",

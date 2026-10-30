@@ -229,6 +229,7 @@ class ModsPage(QWidget):
         self.cats = QListWidget()
         self.cats.setFixedWidth(190)
         self.cats.currentItemChanged.connect(self._on_cat)
+        self.cats_hover = anim.HoverHighlight(self.cats, radius=6)
         split.addWidget(self.cats)
 
         right = QSplitter(Qt.Vertical)
@@ -249,6 +250,7 @@ class ModsPage(QWidget):
         self.tree.itemChanged.connect(self._on_item_changed)
         self.tree.currentItemChanged.connect(self._on_select)
         self.tree.itemDoubleClicked.connect(lambda *_: self.edit_config())
+        self.tree_hover = anim.HoverHighlight(self.tree, radius=6)
         right.addWidget(self.tree)
 
         detail_box = QWidget()
@@ -484,6 +486,7 @@ class ModsPage(QWidget):
             return
         self._last_mod = cur.mod
         self.detail.setHtml(self._mod_html(cur.mod))
+        anim.fade_in(self.detail, 160)
 
     # ---------------- 配置编辑
     def edit_config(self) -> None:

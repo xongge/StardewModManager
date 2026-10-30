@@ -1,0 +1,32 @@
+# 个人配置与缓存（含游戏路径 / API Key，绝对不要提交）
+config.json
+config.tmp
+name_map.json
+label_map.json
+updates_cache.json
+release_notes_cache.json
+app_update.json
+nexus_debug.html
+
+# 运行产物
+logs/
+backup/
+smapi_update/
+*.log
+*.original
+
+# 构建产物
+.build/
+build/
+dist/
+*.spec
+*.exe
+payload.zip
+安装包/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/

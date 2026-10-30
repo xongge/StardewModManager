@@ -142,21 +142,21 @@ QPushButton {{
     border: 1px solid {C['line']}; border-radius: 8px;
     padding: 7px 14px; color: {C['text']};
 }}
-QPushButton:hover {{ background: {mix(C['accent'], C['panel2'], 0.14)}; border-color: {C['accent']}; }}
+QPushButton:hover {{ border-color: {C['accent']}; }}
 QPushButton:pressed {{ background: {shade(C['panel2'], 0.92 if is_dark(C) else 0.9)}; }}
 QPushButton:disabled {{ color: {C['muted']}; background: {shade(C['panel2'],0.9)}; border-color: {C['line']}; }}
 QPushButton#Primary {{
     background: transparent; border: 1px solid {C['accent']}; color: {C['accent']};
     font-weight: 700; padding: 6px 14px;
 }}
-QPushButton#Primary:hover {{ background: {mix(C['accent'], C['panel'], 0.18)}; }}
+QPushButton#Primary:hover {{ border-color: {shade(C['accent'], 0.8 if is_dark(C) else 1.25)}; }}
 QPushButton#Primary:pressed {{ background: {mix(C['accent'], C['panel'], 0.3)}; }}
 QPushButton#Primary:disabled {{ border-color: {C['line']}; color: {C['muted']}; background: transparent; }}
 QPushButton#Danger {{
     background: transparent; border: 1px solid {C['red']}; color: {C['red']};
     font-weight: 700; padding: 6px 14px;
 }}
-QPushButton#Danger:hover {{ background: {mix(C['red'], C['panel'], 0.18)}; }}
+QPushButton#Danger:hover {{ border-color: {shade(C['red'], 0.8 if is_dark(C) else 1.25)}; }}
 QPushButton#Danger:pressed {{ background: {mix(C['red'], C['panel'], 0.3)}; }}
 
 QLineEdit, QPlainTextEdit, QTextEdit, QTextBrowser, QComboBox, QSpinBox {{
@@ -175,7 +175,7 @@ QListWidget, QTreeWidget, QTableWidget {{
 }}
 QListWidget::item, QTreeWidget::item {{ padding: 6px 8px; border-radius: 6px; }}
 QListWidget::item:selected, QTreeWidget::item:selected {{ background: {C['panel2']}; color: {C['accent']}; }}
-QTreeWidget::item:hover, QListWidget::item:hover {{ background: {shade(C['panel2'], 1.08 if is_dark(C) else 0.96)}; }}
+QTreeWidget::item:hover, QListWidget::item:hover {{ background: transparent; }}
 QHeaderView::section {{
     background: {C['panel']}; color: {C['muted']}; border: none; border-bottom: 1px solid {C['line']};
     padding: 8px; font-weight: 600;

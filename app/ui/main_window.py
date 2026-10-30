@@ -67,6 +67,8 @@ class MainWindow(QMainWindow):
         sl.addWidget(brand)
         sl.addWidget(sub)
 
+        anim.ENABLED = bool(self.ctx.config.get("animations", True))
+        self._soft_press = None
         self.pill = anim.NavPill(side)
         self.group = QButtonGroup(self)
         self.group.setExclusive(True)
@@ -123,6 +125,7 @@ class MainWindow(QMainWindow):
 
         self.group.idClicked.connect(self.goto_page)
         self.group.button(0).setChecked(True)
+        self.install_soft_press()
         self.ctx.status.connect(self.status_label.setText)
         self.ctx.modsChanged.connect(self._refresh_counts)
         self.ctx.smapiInfoChanged.connect(self._refresh_counts)
@@ -160,8 +163,10 @@ class MainWindow(QMainWindow):
     def goto_page(self, index: int) -> None:
         if index < 0 or index >= self.stack.count():
             return
+        previous = self.stack.currentIndex()
+        direction = 1 if index >= previous else -1
         self.group.button(index).setChecked(True)
-        anim.switch_page(self.stack, index)
+        anim.switch_page(self.stack, index, direction=direction)
         self._move_pill(animate=True)
         widget = self.stack.currentWidget()
         if hasattr(widget, "on_shown"):
@@ -213,6 +218,7 @@ class MainWindow(QMainWindow):
         themelib.apply_theme(QApplication.instance(), self.ctx.config)
         self.refresh_theme()
         self.apply_titlebar_mode()
+        self.install_soft_press()
         iconlib.reload_icon(self.ctx.config)
         iconlib.apply_to(QApplication.instance(), self, self.ctx.config)
         value = bool(self.ctx.config.get("animations", True))
@@ -267,6 +273,14 @@ class MainWindow(QMainWindow):
         from .dialog_update import notify_if_any
 
         notify_if_any(self, self.ctx, force=False)
+
+    def install_soft_press(self) -> None:
+        """全局按钮按下反馈（只在第一次安装）。"""
+        try:
+            if getattr(self, "_soft_press", None) is None:
+                self._soft_press = anim.SoftPress(QApplication.instance())
+        except Exception:  # noqa: BLE001
+            pass
 
     def apply_titlebar_mode(self) -> None:
         """标题栏跟随深色 / 明亮主题（切换配色时也要重新应用）。"""

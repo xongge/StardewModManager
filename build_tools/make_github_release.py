@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import os
 import re
 import shutil
 from pathlib import Path
@@ -12,7 +13,7 @@ from pathlib import Path
 WS = Path(__file__).resolve().parent.parent
 OUT = WS / "GitHub上传版"
 REPO = "xongge/StardewModManager"
-VER = "1.3"
+VER = "1.4"
 
 # 绝不复制的东西（个人数据 / 构建产物 / 缓存 / 二进制）
 SKIP_NAMES = {
@@ -266,6 +267,15 @@ pause
 
 CHANGELOG = """# 更新日志
 
+## v1.4
+
+- **页面切换过渡**：旧页面快照带方向滑出并淡出，新页面同时淡入（前进往左、后退往右）
+- **模组列表过渡**：条目高亮改为会跟随鼠标**平滑滑动**的动画条，不再是瞬间变色
+- 左侧分类列表同样使用滑动高亮；切换 Mod 时详情面板淡入
+- **所有按钮**：悬停时淡入一层淡色（普通按钮绿、危险按钮红），按下有轻微压暗回弹
+- 设置里的 `animations` 开关现在会真正控制全部动画（关掉即完全无动画）
+- 生成 GitHub 上传版时保留已有 `.git`，不再重建仓库
+
 ## v1.3
 
 - **软件自身更新**：读本仓库 Release 检查新版本，状态栏一键检查，弹窗显示更新说明与下载入口
@@ -332,10 +342,41 @@ def copy_tree(src: Path, dst: Path) -> int:
     return count
 
 
+def _force_remove(func, path, _exc):
+    """清掉只读属性后重试（.git 里的对象文件经常是只读的）。"""
+    try:
+        os.chmod(path, 0o700)
+        func(path)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def clear_output(out: Path) -> None:
+    """清空输出目录，但保留 .git（已经 git init / 已推送过的仓库不能丢）。"""
+    if not out.exists():
+        return
+    for item in list(out.iterdir()):
+        if item.name == ".git":
+            continue
+        try:
+            if item.is_dir():
+                shutil.rmtree(item, onerror=_force_remove)
+            else:
+                try:
+                    item.unlink()
+                except PermissionError:
+                    os.chmod(item, 0o700)
+                    item.unlink()
+        except Exception as exc:  # noqa: BLE001
+            print(f"  （跳过无法删除的 {item.name}：{exc}）")
+
+
 def main() -> int:
-    if OUT.exists():
-        shutil.rmtree(OUT)
-    OUT.mkdir(parents=True)
+    had_git = (OUT / ".git").exists()
+    clear_output(OUT)
+    OUT.mkdir(parents=True, exist_ok=True)
+    if had_git:
+        print("检测到已有 .git 仓库：保留它，只刷新文件内容")
 
     copied = 0
     for name in ("app", "build_tools", "installer"):
