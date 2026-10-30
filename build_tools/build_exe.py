@@ -37,19 +37,19 @@ PAYLOAD_NAME = "StardewModManager"
 VERSION_INFO = '''# UTF-8
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 41, 0, 0), prodvers=(1, 41, 0, 0), mask=0x3f, flags=0x0,
+    filevers=(1, 4, 1, 0), prodvers=(1, 4, 1, 0), mask=0x3f, flags=0x0,
     OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)),
   kids=[
     StringFileInfo([
       StringTable('080404B0', [
         StringStruct('CompanyName', 'Stardew Mod Manager'),
         StringStruct('FileDescription', '星露谷 Mod 管理器'),
-        StringStruct('FileVersion', '1.41.0.0'),
+        StringStruct('FileVersion', '1.4.1.0'),
         StringStruct('InternalName', 'StardewModManager'),
         StringStruct('LegalCopyright', 'Copyright (C) 2026 Stardew Mod Manager. All rights reserved.'),
         StringStruct('OriginalFilename', 'StardewModManager.exe'),
         StringStruct('ProductName', '星露谷 Mod 管理器'),
-        StringStruct('ProductVersion', '1.41.0.0')])]),
+        StringStruct('ProductVersion', '1.4.1.0')])]),
     VarFileInfo([VarStruct('Translation', [0x0804, 1200])])
   ]
 )

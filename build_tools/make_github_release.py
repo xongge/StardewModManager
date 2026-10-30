@@ -13,7 +13,7 @@ from pathlib import Path
 WS = Path(__file__).resolve().parent.parent
 OUT = WS / "GitHub上传版"
 REPO = "xongge/StardewModManager"
-VER = "1.41"
+VER = "1.4.1"
 
 # 绝不复制的东西（个人数据 / 构建产物 / 缓存 / 二进制）
 SKIP_NAMES = {
@@ -267,7 +267,7 @@ pause
 
 CHANGELOG = """# 更新日志
 
-## v1.41
+## v1.4.1
 
 - **控制台长行自动换行**：超出窗口宽度会换行（没有空格的长路径/URL 也会在边缘断开），不再需要横向滚动
 - **控制台响应更快**：输出改成批量插入（一次编辑块一次布局），统计数字节流推送，日志每 64 行才落盘一次
