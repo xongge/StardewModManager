@@ -231,16 +231,54 @@ class MainWindow(QMainWindow):
         light = str(self.ctx.config.get("theme_mode") or "dark") == "light"
         self.theme_btn.setText("☀  明亮" if light else "🌙  深色")
 
+    def _theme_transition(self, apply_fn) -> None:
+        """换主题时先抓一张整窗快照，应用新配色后让它淡出，避免"闪一下"。"""
+        if not anim.enabled():
+            apply_fn()
+            return
+        try:
+            from PySide6.QtCore import QEasingCurve, QPropertyAnimation
+            from PySide6.QtWidgets import QGraphicsOpacityEffect, QLabel
+
+            snapshot = self.grab()
+            overlay = QLabel(self)
+            overlay.setObjectName("ThemeOverlay")
+            overlay.setAttribute(Qt.WA_TransparentForMouseEvents, True)
+            overlay.setPixmap(snapshot)
+            overlay.setGeometry(0, 0, self.width(), self.height())
+            overlay.show()
+            overlay.raise_()
+            apply_fn()
+            effect = QGraphicsOpacityEffect(overlay)
+            overlay.setGraphicsEffect(effect)
+            fade = QPropertyAnimation(effect, b"opacity", overlay)
+            fade.setDuration(260)
+            fade.setStartValue(1.0)
+            fade.setEndValue(0.0)
+            fade.setEasingCurve(QEasingCurve.OutCubic)
+            fade.finished.connect(lambda: (overlay.hide(), overlay.deleteLater()))
+            self._theme_anim = fade
+            fade.start()
+        except Exception:  # noqa: BLE001
+            try:
+                apply_fn()
+            except Exception:  # noqa: BLE001
+                pass
+
     def toggle_theme_mode(self) -> None:
-        """深色 / 明亮一键切换（放在侧栏，随时能点）。"""
+        """深色 / 明亮一键切换（带整窗淡入淡出，不闪）。"""
         light = str(self.ctx.config.get("theme_mode") or "dark") == "light"
         self.ctx.config.set("theme_mode", "dark" if light else "light")
         self.ctx.config.save()
-        themelib.apply_theme(QApplication.instance(), self.ctx.config)
-        self.refresh_theme()
-        self.apply_titlebar_mode()
-        self._sync_theme_btn()
-        self.settings_page.refresh_colors()
+
+        def apply():
+            themelib.apply_theme(QApplication.instance(), self.ctx.config)
+            self.refresh_theme()
+            self.apply_titlebar_mode()
+            self._sync_theme_btn()
+            self.settings_page.refresh_colors()
+
+        self._theme_transition(apply)
         self.ctx.status.emit("已切换到" + ("明亮配色" if not light else "深色配色"))
 
     def set_update_hint(self, info: dict) -> None:

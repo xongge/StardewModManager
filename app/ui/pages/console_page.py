@@ -136,7 +136,16 @@ class ConsolePage(QWidget):
             " font-family: Consolas, 'Cascadia Mono', 'Microsoft YaHei UI', monospace; padding:10px;"
             % (C["bg2"], C["line"], C["text"])
         )
-        self.view.setLineWrapMode(QPlainTextEdit.NoWrap)
+        # 长行自动换行（连没有空格的长路径/URL 也在窗口边缘断开，不出现横向滚动条）
+        self.view.setLineWrapMode(QPlainTextEdit.WidgetWidth)
+        try:
+            from PySide6.QtGui import QTextOption
+
+            self.view.setWordWrapMode(QTextOption.WrapAtWordBoundaryOrAnywhere)
+        except Exception:  # noqa: BLE001
+            pass
+        self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.view.setUndoRedoEnabled(False)
         self.view.setTextInteractionFlags(
             Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard
         )
@@ -286,23 +295,36 @@ class ConsolePage(QWidget):
             del self._records[: len(self._records) - self._max]
         if not self._pass(level):
             return
-        # 攒一批再刷新，SMAPI 刷屏时不会卡界面
+        # 攒一批再一次性插入，SMAPI 刷屏时不卡界面、延迟也更低
         self._pending.append(html)
-        if len(self._pending) >= 40:
+        if len(self._pending) >= 120:
             self._flush()
-        elif self._flush_timer is None:
-            self._flush_timer = QTimer(self)
-            self._flush_timer.setSingleShot(True)
-            self._flush_timer.timeout.connect(self._flush)
-            self._flush_timer.start(60)
+        else:
+            if self._flush_timer is None:
+                self._flush_timer = QTimer(self)
+                self._flush_timer.setSingleShot(True)
+                self._flush_timer.timeout.connect(self._flush)
+            if not self._flush_timer.isActive():
+                self._flush_timer.start(50)
 
     def _flush(self) -> None:
         if self._flush_timer is not None and self._flush_timer.isActive():
             self._flush_timer.stop()
         if not self._pending:
             return
-        for html in self._pending:
-            self.view.appendHtml(html)
+        try:
+            from PySide6.QtGui import QTextCursor
+
+            cursor = self.view.textCursor()
+            cursor.movePosition(QTextCursor.End)
+            cursor.beginEditBlock()          # 一批只做一次布局/重绘
+            for html in self._pending:
+                cursor.insertHtml(html)
+                cursor.insertBlock()
+            cursor.endEditBlock()
+        except Exception:  # noqa: BLE001
+            for html in self._pending:
+                self.view.appendHtml(html)
         self._pending.clear()
         self._scroll()
 
@@ -313,9 +335,21 @@ class ConsolePage(QWidget):
 
     def _rerender(self) -> None:
         self.view.clear()
-        for level, html, _raw in self._records:
-            if self._pass(level):
-                self.view.appendHtml(html)
+        try:
+            from PySide6.QtGui import QTextCursor
+
+            cursor = self.view.textCursor()
+            cursor.movePosition(QTextCursor.End)
+            cursor.beginEditBlock()
+            for level, html, _raw in self._records:
+                if self._pass(level):
+                    cursor.insertHtml(html)
+                    cursor.insertBlock()
+            cursor.endEditBlock()
+        except Exception:  # noqa: BLE001
+            for level, html, _raw in self._records:
+                if self._pass(level):
+                    self.view.appendHtml(html)
         self._scroll()
 
     def _scroll(self) -> None:

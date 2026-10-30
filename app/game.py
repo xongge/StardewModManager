@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
@@ -613,6 +614,10 @@ class GameRunner(QObject):
                 self._emit(text)
             else:
                 self.emit_system(text)
+            try:
+                self.stats.emit(self.errors, self.warnings)   # 退出前推一次最终数字
+            except Exception:  # noqa: BLE001
+                pass
             self.exited.emit(signed)
             self.close_log()
 
@@ -620,12 +625,16 @@ class GameRunner(QObject):
         if getattr(self, "_tracker", None) is None:
             self._tracker = LevelTracker()
         level = self._tracker.level(ln)
-        if level == "error":
-            self.errors += 1
-            self.stats.emit(self.errors, self.warnings)
-        elif level == "warn":
-            self.warnings += 1
-            self.stats.emit(self.errors, self.warnings)
+        if level in ("error", "warn"):
+            if level == "error":
+                self.errors += 1
+            else:
+                self.warnings += 1
+            # 统计数字最多每 0.12 秒推一次，避免刷屏时每行都发信号
+            now = time.time()
+            if now - getattr(self, "_stats_at", 0.0) > 0.12:
+                self._stats_at = now
+                self.stats.emit(self.errors, self.warnings)
         m = SMAPI_VER_RE.search(ln)
         if m:
             self.smapiVersion.emit(m.group(1))
@@ -666,7 +675,10 @@ class GameRunner(QObject):
         if self.log_file:
             try:
                 self.log_file.write(text + "\n")
-                self.log_file.flush()
+                # 每 64 行才真正落盘一次，避免每行都 flush 拖慢输出
+                self._log_lines = getattr(self, "_log_lines", 0) + 1
+                if self._log_lines % 64 == 0:
+                    self.log_file.flush()
             except Exception:  # noqa: BLE001
                 pass
 

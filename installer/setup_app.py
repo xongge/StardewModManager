@@ -21,7 +21,7 @@ import zipfile
 from pathlib import Path
 
 APP_NAME = "星露谷 Mod 管理器"
-APP_VER = "1.4"
+APP_VER = "1.41"
 FOLDER = "StardewModManager"
 EXE_NAME = "StardewModManager.exe"
 UNINSTALL_REL = "卸载.hta"
