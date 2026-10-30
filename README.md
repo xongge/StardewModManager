@@ -3,7 +3,7 @@
 > Windows 上的星露谷物语 **Mod 管理 + 汉化 + 更新 + SMAPI 维护** 一体化工具。
 > Python + PySide6 编写，深色界面，中文。
 
-[![version](https://img.shields.io/badge/version-1.4.1-4cc38a)](https://github.com/xongge/StardewModManager/releases)
+[![version](https://img.shields.io/badge/version-1.4.2-4cc38a)](https://github.com/xongge/StardewModManager/releases)
 [![platform](https://img.shields.io/badge/platform-Windows%2010%2F11-5aa9ff)](#)
 [![python](https://img.shields.io/badge/python-3.10%2B-ffd166)](#)
 
@@ -78,7 +78,7 @@ python build_tools\test_setup_exe.py          :: 静默安装端到端测试（�
 ## 发布新版本
 
 1. 改 `app/__init__.py` 里的 `APP_VERSION`
-2. 重新打包，在 GitHub 上 `Draft a new release`，**Tag 用 `v1.4.1`**
+2. 重新打包，在 GitHub 上 `Draft a new release`，**Tag 用 `v1.4.2`**
 3. 把 `星露谷Mod管理器-安装程序.exe` 作为附件上传（程序的「下载最新安装包」会用它）
 4. Publish
 

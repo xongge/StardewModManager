@@ -67,7 +67,7 @@
 <body>
   <div id="head">
     <img src="payload/StardewModManager/icon.png" alt="" />
-    <div class="t">星露谷 Mod 管理器 <span style="font-size:12px;color:#8895a7;">v1.4.1</span></div>
+    <div class="t">星露谷 Mod 管理器 <span style="font-size:12px;color:#8895a7;">v1.4.2</span></div>
     <div class="s">Stardew Valley Mod Manager · 安装程序（免 Python 运行环境）</div>
   </div>
 
@@ -281,7 +281,7 @@ function makeLnk(lnkPath, target, workdir, icon){
 function writeRegistry(){
   try {
     sh.RegWrite(UNINSTALL_KEY + "\\DisplayName", APPNAME, "REG_SZ");
-    sh.RegWrite(UNINSTALL_KEY + "\\DisplayVersion", "1.4.1", "REG_SZ");
+    sh.RegWrite(UNINSTALL_KEY + "\\DisplayVersion", "1.4.2", "REG_SZ");
     sh.RegWrite(UNINSTALL_KEY + "\\Publisher", "Stardew Mod Manager", "REG_SZ");
     sh.RegWrite(UNINSTALL_KEY + "\\InstallLocation", state.dir, "REG_SZ");
     sh.RegWrite(UNINSTALL_KEY + "\\DisplayIcon", state.dir + "\\" + PAYLOADNAME + "\\icon.ico", "REG_SZ");

@@ -86,6 +86,40 @@ def fetch_latest(repo: str = DEFAULT_REPO, timeout: int = 15) -> dict:
     }
 
 
+def download_asset(url: str, dest, progress=None, should_stop=None,
+                   timeout: int = 30, chunk: int = 262144):
+    """把 Release 附件下载到本地，边下边回调进度（0~1）。"""
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    req = urllib.request.Request(url, headers={"User-Agent": "StardewModManager"})
+    got = 0
+    total = 0
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+            total = int(resp.headers.get("Content-Length") or 0)
+            with open(dest, "wb") as fh:
+                while True:
+                    if should_stop is not None and should_stop():
+                        raise UpdateError("已取消下载")
+                    block = resp.read(chunk)
+                    if not block:
+                        break
+                    fh.write(block)
+                    got += len(block)
+                    if progress is not None and total:
+                        try:
+                            progress(min(1.0, got / total))
+                        except Exception:  # noqa: BLE001
+                            pass
+    except UpdateError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise UpdateError(f"下载失败：{exc}") from exc
+    if total and got < total:
+        raise UpdateError(f"下载不完整（{got}/{total} 字节）")
+    return dest
+
+
 class AppUpdateCache:
     """把检查结果写到磁盘，避免频繁请求。"""
 
