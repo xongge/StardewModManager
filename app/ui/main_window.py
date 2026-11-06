@@ -1,6 +1,8 @@
 """主窗口：左侧导航 + 分类页面（类似 WeGame / 游戏启动器布局）。"""
 from __future__ import annotations
 
+import os
+
 import sys
 
 from PySide6.QtCore import Qt, QTimer
@@ -344,6 +346,20 @@ class MainWindow(QMainWindow):
             f"SMAPI {self.ctx.smapi_installed or '未检测到'}"
         )
 
+    def _stop_window_threads(self) -> None:
+        """停掉挂在窗口自身上的线程（如软件更新检查）。"""
+        try:
+            from PySide6.QtCore import QThread
+        except Exception:  # noqa: BLE001
+            return
+        for value in list(vars(self).values()):
+            if isinstance(value, QThread) and value.isRunning():
+                try:
+                    value.requestInterruption()
+                    value.wait(1500)
+                except Exception:  # noqa: BLE001
+                    pass
+
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         if self.ctx.runner.running:
             r = QMessageBox.question(
@@ -358,6 +374,7 @@ class MainWindow(QMainWindow):
                 page.shutdown()
             except Exception:  # noqa: BLE001
                 pass
+        self._stop_window_threads()
         self.ctx.shutdown()
         event.accept()
 
@@ -371,4 +388,12 @@ def run() -> int:
     win.refresh_theme()
     iconlib.apply_to(app, win, win.ctx.config)
     win.show()
-    return app.exec()
+    code = app.exec()
+    # 退出前尽量把后台线程收干净；仍有个别线程卡在网络请求上时，
+    # 用 os._exit 直接结束，避免 Qt 在解释器销毁阶段报 "QThread destroyed" 崩溃。
+    try:
+        win.ctx.shutdown()
+        win._stop_window_threads()
+    except Exception:  # noqa: BLE001
+        pass
+    os._exit(int(code or 0))

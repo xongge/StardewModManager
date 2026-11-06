@@ -26,20 +26,22 @@ from PySide6.QtWidgets import (
 
 from ... import ai as ailab
 from ... import mods as modlib
+from ...services import mod_service
 from ... import updates as updatelib
 from ...config import cache_path
 from .. import anim
 from ..page_base import PageBase
+from ..widgets.mod_detail import mod_html_for
 from ..theme import C
 from .config_editor import ConfigEditor
 from .settings_page import open_path
 
-CAT_ALL = "全部 Mod"
-CAT_ON = "已启用"
-CAT_OFF = "已停用"
-CAT_ISSUE = "有问题的"
-CAT_UPDATE = "可更新的"
-CATS_FIXED = [CAT_ALL, CAT_ON, CAT_OFF, CAT_ISSUE, CAT_UPDATE]
+CAT_ALL = mod_service.CAT_ALL
+CAT_ON = mod_service.CAT_ON
+CAT_OFF = mod_service.CAT_OFF
+CAT_ISSUE = mod_service.CAT_ISSUE
+CAT_UPDATE = mod_service.CAT_UPDATE
+CATS_FIXED = list(mod_service.CATS_FIXED)
 
 
 class UpdateWorker(QThread):
@@ -346,27 +348,10 @@ class ModsPage(PageBase):
 
     # ---------------- 过滤
     def _match(self, mod) -> bool:
-        cat = self._current_cat
-        if cat == CAT_ON and not mod.enabled:
-            return False
-        if cat == CAT_OFF and mod.enabled:
-            return False
-        if cat == CAT_ISSUE and not mod.problems:
-            return False
-        if cat == CAT_UPDATE and self._update_of(mod).get("status") != "new":
-            return False
-        if cat in modlib.KINDS and mod.kind != cat:
-            return False
-        kw = self._keyword
-        if kw:
-            zh = self.ctx.translated_name(mod)
-            hay = (
-                f"{mod.name} {zh} {getattr(mod, 'zh_name', '')} {mod.author} "
-                f"{mod.unique_id} {mod.folder_name} {mod.description}"
-            ).lower()
-            if kw not in hay:
-                return False
-        return True
+        return mod_service.match(
+            mod, self._current_cat, self._keyword, self.updates,
+            self.ctx.translated_name, modlib.KINDS,
+        )
 
     def _on_search(self, text: str) -> None:
         self._keyword = (text or "").strip().lower()
@@ -464,12 +449,13 @@ class ModsPage(PageBase):
         self._apply_toggle(mod, want_enabled)
 
     def _apply_toggle(self, mod, want_enabled: bool) -> bool:
-        md = self.ctx.mods_dir
-        if md is None:
+        if self.ctx.mods_dir is None:
             QMessageBox.warning(self, "未设置目录", "请先在设置里指定 Mod 文件夹。")
             self.reload()
             return False
-        ok, msg = modlib.toggle_mod(mod, self.ctx.disabled_dir_name, md, want_enabled)
+        ok, msg = mod_service.toggle_one(
+            mod, want_enabled, self.ctx.disabled_dir_name, self.ctx.mods_dir
+        )
         if not ok:
             QMessageBox.critical(self, "操作失败", f"{mod.folder_name}\n{msg}")
             self.ctx.status.emit(f"操作失败：{msg}")
@@ -501,10 +487,9 @@ class ModsPage(PageBase):
             self, f"批量{tip}", f"确定要{tip} {len(mods)} 个 Mod 吗？"
         ) != QMessageBox.Yes:
             return
-        failed = 0
-        for mod in mods:
-            ok, _ = modlib.toggle_mod(mod, self.ctx.disabled_dir_name, self.ctx.mods_dir, enable)
-            failed += 0 if ok else 1
+        _ok, failed = mod_service.bulk_toggle(
+            mods, enable, self.ctx.disabled_dir_name, self.ctx.mods_dir
+        )
         self.ctx.status.emit(f"批量{tip}完成，失败 {failed} 个")
         self.ctx.refresh_mods()
 
@@ -701,12 +686,7 @@ class ModsPage(PageBase):
 
     # ---------------- 把中文名写进 manifest
     def _name_pairs(self):
-        pairs = []
-        for mod in self.ctx.mods:
-            zh = self.ctx.translated_name(mod)
-            if zh and zh != mod.name:
-                pairs.append((mod, zh))
-        return pairs
+        return mod_service.name_pairs(self.ctx.mods, self.ctx.translated_name)
 
     def write_names_to_manifest(self) -> None:
         pairs = self._name_pairs()
@@ -723,15 +703,7 @@ class ModsPage(PageBase):
             "修改前会自动备份成 manifest.json.original，随时可以点「恢复原名」。是否继续？",
         ) != QMessageBox.Yes:
             return
-        ok = fail = 0
-        errors = []
-        for mod, zh in pairs:
-            good, msg = modlib.write_manifest_name(Path(mod.folder), zh)
-            if good:
-                ok += 1
-            else:
-                fail += 1
-                errors.append(f"{mod.folder_name}: {msg}")
+        ok, fail, errors = mod_service.write_names(pairs)
         self.status.setText(f"已写入 {ok} 个，失败 {fail} 个")
         self.ctx.status.emit(self.status.text())
         if errors:
@@ -739,7 +711,7 @@ class ModsPage(PageBase):
         self.ctx.refresh_mods()
 
     def restore_names(self) -> None:
-        targets = [m for m in self.ctx.mods if modlib.has_manifest_backup(Path(m.folder))]
+        targets = mod_service.restore_targets(self.ctx.mods)
         if not targets:
             QMessageBox.information(self, "没有备份", "没有找到 manifest.json.original 备份。")
             return
@@ -747,75 +719,11 @@ class ModsPage(PageBase):
             self, "恢复原名", f"将恢复 {len(targets)} 个 Mod 的 manifest 原名，确定吗？"
         ) != QMessageBox.Yes:
             return
-        ok = fail = 0
-        for mod in targets:
-            good, _msg = modlib.restore_manifest_name(Path(mod.folder))
-            ok += 1 if good else 0
-            fail += 0 if good else 1
+        ok, fail = mod_service.restore_names(targets)
         self.status.setText(f"已恢复 {ok} 个，失败 {fail} 个")
         self.ctx.status.emit(self.status.text())
         self.ctx.refresh_mods()
 
     # ---------------- 详情
     def _mod_html(self, mod) -> str:
-        def esc(t):
-            return str(t or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-
-        sev = {"error": C["red"], "warn": C["yellow"], "info": C["muted"]}
-        probs = "".join(
-            f'<div style="color:{sev[p.severity]};">● {esc(p.text)}</div>' for p in mod.problems
-        ) or f'<div style="color:{C["accent"]};">● 未发现问题</div>'
-        state = (
-            f'<span style="color:{C["accent"]};">已启用</span>'
-            if mod.enabled
-            else f'<span style="color:{C["muted"]};">已停用</span>'
-        )
-        links = ""
-        for k in mod.update_keys:
-            if k.lower().startswith("nexus:"):
-                links += f'<a style="color:{C["blue"]};" href="https://www.nexusmods.com/stardewvalley/mods/{esc(k.split(":", 1)[1])}">Nexus</a> '
-        cp_line = ""
-        if mod.content_pack_for:
-            cp_line = f'<div style="color:{C["muted"]};">内容包框架：{esc(mod.content_pack_for)}</div>'
-        zh = self.ctx.translated_name(mod)
-        src = self.ctx.name_source(mod)
-        zh_line = (
-            f'<div style="color:{C["accent"]};font-weight:700;">{esc(zh)}'
-            f'<span style="color:{C["muted"]};font-weight:400;font-size:12px;">　（{esc(src)}）</span></div>'
-            if zh and zh != mod.name
-            else ""
-        )
-        cfg_path = Path(mod.folder) / "config.json"
-        cfg_line = (
-            f'<div style="color:{C["accent"]};">● 已有配置文件 config.json，可以点下面「编辑配置」图形化修改</div>'
-            if cfg_path.exists()
-            else f'<div style="color:{C["muted"]};">● 还没有 config.json（进一次游戏后一般会生成）</div>'
-        )
-        info = self._update_of(mod)
-        up_line = ""
-        if info.get("status") == "new":
-            up_line = (
-                f'<div style="color:{C["accent"]};font-weight:700;">⬆ 有新版本：'
-                f'{esc(mod.display_version)} → {esc(info.get("latest"))}'
-                f'　<a style="color:{C["blue"]};" href="{esc(info.get("url") or "#")}">前往下载</a></div>'
-            )
-        elif info:
-            note = info.get("note") or {"ok": "已是最新版本", "skip": "无法自动检查", "error": "查询失败"}.get(
-                info.get("status"), ""
-            )
-            up_line = f'<div style="color:{C["muted"]};">● 更新检查：{esc(note)}</div>'
-        return f"""
-        {zh_line}
-        <div style="font-size:15px;font-weight:700;">{esc(mod.name)}</div>
-        <div style="color:{C['muted']};">{esc(mod.author or '未知作者')} · v{esc(mod.display_version)} · {esc(mod.kind)} · {state}</div>
-        <hr style="border:none;border-top:1px solid {C['line']};">
-        <div style="color:{C['muted']};">UniqueID：{esc(mod.unique_id or '-')}　最低 SMAPI：{esc(mod.min_api or '-')}</div>
-        <div style="color:{C['muted']};">文件夹：{esc(mod.folder_name)}</div>
-        <div style="color:{C['muted']};">路径：{esc(mod.folder)}</div>
-        {cp_line}
-        <div style="margin:6px 0;">{esc(mod.description)}</div>
-        <div style="margin-top:8px;">{probs}</div>
-        <div style="margin-top:6px;">{cfg_line}</div>
-        <div style="margin-top:6px;">{up_line}</div>
-        <div style="margin-top:6px;">{links}</div>
-        """
+        return mod_html_for(self, mod)
