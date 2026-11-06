@@ -37,19 +37,19 @@ PAYLOAD_NAME = "StardewModManager"
 VERSION_INFO = '''# UTF-8
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 4, 4, 0), prodvers=(1, 4, 4, 0), mask=0x3f, flags=0x0,
+    filevers=(1, 4, 5, 0), prodvers=(1, 4, 5, 0), mask=0x3f, flags=0x0,
     OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)),
   kids=[
     StringFileInfo([
       StringTable('080404B0', [
         StringStruct('CompanyName', 'Stardew Mod Manager'),
         StringStruct('FileDescription', '星露谷 Mod 管理器'),
-        StringStruct('FileVersion', '1.4.4.0'),
+        StringStruct('FileVersion', '1.4.5.0'),
         StringStruct('InternalName', 'StardewModManager'),
         StringStruct('LegalCopyright', 'Copyright (C) 2026 Stardew Mod Manager. All rights reserved.'),
         StringStruct('OriginalFilename', 'StardewModManager.exe'),
         StringStruct('ProductName', '星露谷 Mod 管理器'),
-        StringStruct('ProductVersion', '1.4.4.0')])]),
+        StringStruct('ProductVersion', '1.4.5.0')])]),
     VarFileInfo([VarStruct('Translation', [0x0804, 1200])])
   ]
 )
@@ -138,6 +138,12 @@ def freeze() -> Path:
         "--hidden-import",
         "app.icongen",
     ]
+    dll = BUILD / "c" / "sdvcore.dll"
+    if dll.exists():
+        cmd += ["--add-binary", f"{dll};."]
+        print(f"打包 C 加速核心：{dll}")
+    else:
+        print("提示：没有 .build/c/sdvcore.dll，程序会自动使用纯 Python 扫描")
     for mod in EXCLUDES:
         cmd += ["--exclude-module", mod]
     cmd.append(str(WS / "main.py"))

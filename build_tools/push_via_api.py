@@ -8,6 +8,7 @@ import base64
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -29,9 +30,23 @@ def api(method: str, url: str, payload=None):
     req.add_header("User-Agent", "SDVMM-push")
     if data:
         req.add_header("Content-Type", "application/json")
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        raw = resp.read()
-    return json.loads(raw.decode("utf-8")) if raw else {}
+    last = None
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                raw = resp.read()
+            return json.loads(raw.decode("utf-8")) if raw else {}
+        except Exception as exc:  # noqa: BLE001
+            last = exc
+            payload = data  # 重试时复用请求体
+            req = urllib.request.Request(url, data=data, method=method)
+            req.add_header("Authorization", f"Bearer {token}")
+            req.add_header("Accept", "application/vnd.github+json")
+            req.add_header("User-Agent", "SDVMM-push")
+            if data:
+                req.add_header("Content-Type", "application/json")
+            time.sleep(2 * (attempt + 1))
+    raise last
 
 
 def main() -> int:

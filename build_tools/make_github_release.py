@@ -13,7 +13,7 @@ from pathlib import Path
 WS = Path(__file__).resolve().parent.parent
 OUT = WS / "GitHub上传版"
 REPO = "xongge/StardewModManager"
-VER = "1.4.4"
+VER = "1.4.5"
 
 # 绝不复制的东西（个人数据 / 构建产物 / 缓存 / 二进制）
 SKIP_NAMES = {
@@ -267,6 +267,21 @@ pause
 
 CHANGELOG = """# 更新日志
 
+## v1.4.5
+
+**C 加速核心（阶段 A）**：把最耗时的 Mod 扫描换成 C 实现，界面与功能完全不变。
+
+- 新增 `csrc/sdvcore.c`（约 700 行 C）+ `sdvcore.dll`（232 KB）：
+  - 目录扫描 + manifest.json 解析（容忍 BOM / 注释 / 尾随逗号 / UTF-16 输出）
+  - 控制台输出的 UTF-16 → UTF-8 解码
+  - 控制台分级判断（含上下文继承）
+- 新增 `app/core/fastcore.py`：ctypes 绑定，**DLL 缺失或异常时自动回退纯 Python**，功能不受影响
+- Mod 扫描实测：**20.3 ms（C） vs 319.5 ms（Python）→ 约 15.8 倍**
+- 逐个字段对比 C 路径与 Python 路径（名称/作者/版本/UniqueID/类型/依赖/问题列表……）**0 差异**
+- 顺带修好 JSON 容忍解析的一个真实 bug：尾随逗号后面有换行时没被去掉，
+  导致 2 个 Mod 之前被误报"manifest 解析失败"（现在能正常识别）
+- 打包脚本会把 `sdvcore.dll` 一起放进安装包
+
 ## v1.4.4
 
 继续重构（功能、界面、配色、文案不变，QSS 仍与基线一致）：
@@ -424,7 +439,7 @@ def main() -> int:
         print("检测到已有 .git 仓库：保留它，只刷新文件内容")
 
     copied = 0
-    for name in ("app", "build_tools", "installer"):
+    for name in ("app", "build_tools", "installer", "csrc"):
         copied += copy_tree(WS / name, OUT / name)
     for name in ("main.py", "requirements.txt", "icon.ico", "icon.png", "启动.bat"):
         src = WS / name

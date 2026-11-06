@@ -394,6 +394,8 @@ class ModsPage(PageBase):
     def _build_rows(self) -> None:
         """按当前数据重建所有行（只在重新扫描/数据变化时调用）。"""
         self._loading = True
+        self.tree.setUpdatesEnabled(False)     # 一次性插入，避免逐行重绘
+        self.tree.blockSignals(True)
         self.tree.clear()
         self._rows = {}
         show_orig = self.show_orig.isChecked()
@@ -404,6 +406,8 @@ class ModsPage(PageBase):
             row = ModRow(mod, label, original, self._update_of(mod))
             self._rows[id(mod)] = row
             self.tree.addTopLevelItem(row)
+        self.tree.blockSignals(False)
+        self.tree.setUpdatesEnabled(True)
         self._loading = False
 
     def _fill_tree(self) -> None:

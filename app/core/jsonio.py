@@ -53,7 +53,7 @@ def _strip_trailing_commas(text: str) -> str:
     """去掉 } / ] 前面多余的逗号（字符串内部的逗号不动）。"""
     out: list[str] = []
     in_str = esc = False
-    last_comma = -1
+    pending = -1          # 待定逗号在 out 里的下标（后面只跟空白时才算“尾随”）
     for c in text:
         if in_str:
             out.append(c)
@@ -66,12 +66,21 @@ def _strip_trailing_commas(text: str) -> str:
             continue
         if c == '"':
             in_str = True
+            pending = -1
+            out.append(c)
         elif c == ",":
-            last_comma = len(out)
-        elif c in "}]" and last_comma == len(out) - 1:
-            out.pop()
-            last_comma = -1
-        out.append(c)
+            pending = len(out)
+            out.append(c)
+        elif c in "}]":
+            if pending >= 0:
+                out.pop(pending)
+                pending = -1
+            out.append(c)
+        elif c in " \t\r\n":
+            out.append(c)
+        else:
+            pending = -1
+            out.append(c)
     return "".join(out)
 
 

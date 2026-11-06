@@ -17,6 +17,7 @@ KINDS = [KIND_FUNC, KIND_PACK, KIND_LIB, KIND_OTHER]
 
 # ---------------------------------------------------------------- JSON 解析
 # JSON 容忍解析已下沉到 app/core/jsonio.py（重新导出，保持 mods.tolerant_json 可用）
+from .core import fastcore
 from .core.jsonio import tolerant_json  # noqa: F401
 
 
@@ -120,18 +121,10 @@ def _version_gt(a: str, b: str) -> bool:
     return _parse_version(a) > _parse_version(b)
 
 
-def _load_one(folder: Path, enabled: bool) -> Mod:
+def _make_mod(folder: Path, enabled: bool, data: dict, manifest_path=None) -> Mod:
+    """用一份 manifest 数据构造 Mod（Python 读取路径与 C 加速路径共用同一套规则）。"""
     mod = Mod(folder=folder, folder_name=folder.name, enabled=enabled)
-    mod.manifest_path = find_manifest(folder)
-    data, err = read_manifest(folder)
-    if err:
-        mod.name = folder.name
-        mod.problems.append(Problem("error", err))
-        return mod
-    if not isinstance(data, dict):
-        mod.name = folder.name
-        mod.problems.append(Problem("error", "manifest.json 根节点不是对象"))
-        return mod
+    mod.manifest_path = manifest_path if manifest_path is not None else find_manifest(folder)
 
     mod.name = str(data.get("Name") or folder.name).strip()
     mod.author = str(data.get("Author") or "").strip()
@@ -172,15 +165,80 @@ def _load_one(folder: Path, enabled: bool) -> Mod:
     return mod
 
 
+def _load_one(folder: Path, enabled: bool) -> Mod:
+    """纯 Python 路径：读文件 + 解析 + 构造（C 核心不可用时使用）。"""
+    data, err = read_manifest(folder)
+    if err:
+        mod = Mod(folder=folder, folder_name=folder.name, enabled=enabled)
+        mod.manifest_path = find_manifest(folder)
+        mod.name = folder.name
+        mod.problems.append(Problem("error", err))
+        return mod
+    if not isinstance(data, dict):
+        mod = Mod(folder=folder, folder_name=folder.name, enabled=enabled)
+        mod.manifest_path = find_manifest(folder)
+        mod.name = folder.name
+        mod.problems.append(Problem("error", "manifest.json 根节点不是对象"))
+        return mod
+    return _make_mod(folder, enabled, data)
+
+
+def _manifest_from_fast(entry: dict) -> dict:
+    """把 C 核心返回的条目转成 manifest.json 的键名，交给 _make_mod 统一处理。"""
+    deps = []
+    for dep in entry.get("dependencies") or []:
+        if not isinstance(dep, dict) or not dep.get("id"):
+            continue
+        deps.append({
+            "UniqueID": dep.get("id"),
+            "IsRequired": bool(dep.get("required", True)),
+            "MinimumVersion": dep.get("min") or "",
+        })
+    return {
+        "Name": entry.get("name") or "",
+        "Author": entry.get("author") or "",
+        "Version": entry.get("version") or "",
+        "Description": entry.get("description") or "",
+        "UniqueID": entry.get("unique_id") or "",
+        "MinimumApiVersion": entry.get("min_api") or "",
+        "EntryDll": entry.get("entry_dll") or "",
+        "ContentPackFor": entry.get("content_pack_for") or "",
+        "UpdateKeys": entry.get("update_keys") or [],
+        "Dependencies": deps,
+    }
+
+
+def _scan_root(root: Path, enabled: bool) -> list:
+    """扫描一个目录；优先用 C 核心，出错或不可用时回退纯 Python。"""
+    entries = fastcore.scan_root(root)
+    if entries is None:
+        return [_load_one(d, enabled) for d in _iter_mod_dirs(root)]
+    entries.sort(key=lambda e: str(e.get("rel") or e.get("folder") or "").lower())
+    out = []
+    for entry in entries:
+        rel = str(entry.get("rel") or entry.get("folder") or "")
+        folder = root / Path(*rel.split("\\")) if rel else root
+        if entry.get("error"):
+            # 读不了 / 解析失败的极少数情况走原逻辑，保证错误文案与原来一致
+            out.append(_load_one(folder, enabled))
+        else:
+            # C 已经知道 manifest 在哪，省掉一次目录扫描
+            out.append(_make_mod(folder, enabled, _manifest_from_fast(entry), folder / "manifest.json"))
+    return out
+
+
 def scan(mods_dir: Path | None, disabled_dir: Path | None, smapi_version: str = "") -> list:
     """扫描启用目录与停用目录，返回 Mod 列表（含依赖/重复等检查）。"""
     mods: list = []
     if mods_dir:
-        for d in _iter_mod_dirs(Path(mods_dir)):
-            mods.append(_load_one(d, True))
+        mods.extend(_scan_root(Path(mods_dir), True))
     if disabled_dir:
-        for d in _iter_mod_dirs(Path(disabled_dir)):
-            mods.append(_load_one(d, False))
+        mods.extend(_scan_root(Path(disabled_dir), False))
+    return _finalize(mods, smapi_version)
+
+
+def _finalize(mods: list, smapi_version: str = "") -> list:
+    """统一做依赖/重复/类型/版本检查并排序（与扫描方式无关）。"""
 
     installed_ids = {m.unique_id.lower() for m in mods if m.unique_id and m.enabled}
 
