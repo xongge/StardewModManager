@@ -12,6 +12,8 @@ import re
 import shutil
 import subprocess
 import urllib.request
+
+from .core import http
 import zipfile
 from pathlib import Path
 
@@ -141,22 +143,8 @@ def latest_release() -> dict:
 
 
 def download(url: str, dest: Path, progress=None) -> Path:
-    dest = Path(dest)
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    req = urllib.request.Request(url, headers={"User-Agent": "StardewModManager/1.0"})
-    with urllib.request.urlopen(req, timeout=60) as resp:  # noqa: S310
-        total = int(resp.headers.get("Content-Length") or 0)
-        got = 0
-        with open(dest, "wb") as fh:
-            while True:
-                chunk = resp.read(262144)
-                if not chunk:
-                    break
-                fh.write(chunk)
-                got += len(chunk)
-                if progress:
-                    progress(got, total)
-    return dest
+    """下载文件（实现收敛到 app/core/http.py，progress 仍是 (got, total)）。"""
+    return http.download(url, dest, progress=progress)
 
 
 def extract(zip_path: Path, target_dir: Path) -> Path:

@@ -18,6 +18,8 @@ import re
 import time
 import urllib.error
 import urllib.request
+
+from .core import http
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -31,21 +33,10 @@ class UpdateError(RuntimeError):
 
 
 def _http_json(url: str, headers: dict | None = None, timeout: int = 25):
-    req = urllib.request.Request(
-        url,
-        headers={
-            "User-Agent": "StardewModManager/1.0",
-            "Accept": "application/json",
-            **(headers or {}),
-        },
-    )
+    """统一的 JSON 请求（底层在 app/core/http.py）。"""
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
-            return json.loads(resp.read().decode("utf-8", "replace"))
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", "replace")[:160]
-        raise UpdateError(f"HTTP {exc.code} {body}") from exc
-    except Exception as exc:  # noqa: BLE001
+        return http.fetch_json(url, headers=headers, timeout=timeout)
+    except http.HttpError as exc:
         raise UpdateError(str(exc)) from exc
 
 
@@ -141,6 +132,7 @@ _LABEL_PATTERNS = (
 
 
 def fetch_page(url: str, cookie: str = "", timeout: int = 30) -> str:
+    """抓公开页面（带浏览器 UA / Cookie）。失败时抛 UpdateError，消息保持原有中文提示。"""
     headers = {
         "User-Agent": BROWSER_UA,
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -149,20 +141,16 @@ def fetch_page(url: str, cookie: str = "", timeout: int = 30) -> str:
     }
     if cookie:
         headers["Cookie"] = cookie.strip()
-    req = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
-            return resp.read().decode("utf-8", "replace")
-    except urllib.error.HTTPError as exc:
-        if exc.code == 403:
+        return http.fetch_text(url, headers=headers, timeout=timeout)
+    except http.HttpError as exc:
+        if exc.status == 403:
             raise UpdateError(
                 "被 Cloudflare 拦了（403）：说明 Cookie 无效或已过期，"
                 "请重新从浏览器复制一次（要包含 cf_clearance 与 nexusmods_session）"
             ) from exc
-        if exc.code == 404:
+        if exc.status == 404:
             raise UpdateError("页面不存在（404），可能该 Mod 已下架或链接变了") from exc
-        raise UpdateError(f"HTTP {exc.code}") from exc
-    except Exception as exc:  # noqa: BLE001
         raise UpdateError(str(exc)) from exc
 
 

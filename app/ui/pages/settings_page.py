@@ -30,6 +30,7 @@ from ... import ai as ailab
 from ... import updates as updatelib
 from ...config import config_dir, log_dir
 from .. import theme as themelib
+from ..page_base import PageBase
 from ..theme import C
 
 CREATE_NO_WINDOW = 0x08000000
@@ -115,7 +116,7 @@ class PathRow(QWidget):
         self.edit.setText(value or "")
 
 
-class SettingsPage(QWidget):
+class SettingsPage(PageBase):
     def __init__(self, ctx, on_saved=None, parent=None):
         super().__init__(parent)
         self.ctx = ctx

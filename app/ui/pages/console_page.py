@@ -30,12 +30,13 @@ from PySide6.QtWidgets import (
 from ...config import log_dir
 from ...game import VANILLA_EXE
 from .. import anim, decor
+from ..page_base import PageBase
 from ..theme import C
 
 FILTERS = ["全部输出", "仅错误与警告", "仅错误"]
 
 
-class ConsolePage(QWidget):
+class ConsolePage(PageBase):
     repairRequested = Signal()
 
     def __init__(self, ctx, parent=None):

@@ -13,7 +13,7 @@ from pathlib import Path
 WS = Path(__file__).resolve().parent.parent
 OUT = WS / "GitHub上传版"
 REPO = "xongge/StardewModManager"
-VER = "1.4.2"
+VER = "1.4.3"
 
 # 绝不复制的东西（个人数据 / 构建产物 / 缓存 / 二进制）
 SKIP_NAMES = {
@@ -266,6 +266,19 @@ pause
 """
 
 CHANGELOG = """# 更新日志
+
+## v1.4.3
+
+本次是**重构版**：功能、界面、颜色、布局、文案完全不变（QSS 与基线逐字节一致），只改内部结构：
+
+- 新增 `app/core/` 公共层：JSON 容忍解析、统一 HTTP（请求/下载/重试）、控制台分级判断
+  - HTTP 原来在三处各写一份（模组更新、SMAPI 下载、软件自更新），现在收敛为一份
+- 新增 `app/ui/page_base.py`：四个页面统一继承，具备 `on_shown / refresh / refresh_theme / shutdown`
+  - 关闭窗口时会先停掉各页面的后台线程，避免退出时崩溃
+- 模组列表过滤改为**隐藏式**：切换分类/搜索不再重建整棵树
+  - 单次过滤耗时从"重建 61 行"降到 **0.1~0.4 ms**
+  - 只有重新扫描/数据变化时才重建行（约 1 ms）
+- 数据层与 UI 解耦：分级判断、HTTP、JSON 都不再依赖 Qt，可独立测试
 
 ## v1.4.2
 

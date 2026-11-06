@@ -16,43 +16,8 @@ KINDS = [KIND_FUNC, KIND_PACK, KIND_LIB, KIND_OTHER]
 
 
 # ---------------------------------------------------------------- JSON 解析
-def tolerant_json(text: str):
-    """容忍 BOM / // 注释 / /* */ 注释 / 尾随逗号的 JSON 解析。"""
-    text = text.lstrip("\ufeff")
-    out: list[str] = []
-    i, n, in_str, esc = 0, len(text), False, False
-    while i < n:
-        c = text[i]
-        if in_str:
-            out.append(c)
-            if esc:
-                esc = False
-            elif c == "\\":
-                esc = True
-            elif c == '"':
-                in_str = False
-            i += 1
-            continue
-        if c == '"':
-            in_str = True
-            out.append(c)
-            i += 1
-            continue
-        if c == "/" and i + 1 < n and text[i + 1] == "/":
-            while i < n and text[i] not in "\r\n":
-                i += 1
-            continue
-        if c == "/" and i + 1 < n and text[i + 1] == "*":
-            i += 2
-            while i + 1 < n and not (text[i] == "*" and text[i + 1] == "/"):
-                i += 1
-            i += 2
-            continue
-        out.append(c)
-        i += 1
-    s = "".join(out)
-    s = re.sub(r",(\s*[}\]])", r"\1", s)
-    return json.loads(s)
+# JSON 容忍解析已下沉到 app/core/jsonio.py（重新导出，保持 mods.tolerant_json 可用）
+from .core.jsonio import tolerant_json  # noqa: F401
 
 
 def find_manifest(folder: Path):

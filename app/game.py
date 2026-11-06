@@ -74,78 +74,21 @@ def _fallback_dirs() -> list:
 
 _FALLBACK_DIRS = _fallback_dirs()
 
-LEVEL_RE = re.compile(r"\b(ERROR|ALERT|CRITICAL|FATAL|WARN|WARNING|TRACE|DEBUG)\b")
+# 分级判断已下沉到 app/core/levels.py（这里重新导出，保持原有调用方式）
+from .core.levels import (  # noqa: F401
+    CONTEXT_BLOCK,
+    ERROR_HINTS,
+    LEVEL_RE,
+    WARN_HINTS,
+    LevelTracker,
+    classify,
+)
+
 SMAPI_VER_RE = re.compile(r"SMAPI\s+(\d+\.\d+\.\d+)")
-HOST_FAIL_RE = re.compile(r"hostpolicy\.dll|hostfxr|Failed to run as a self-contained app|did not specify a framework", re.I)
-
-# SMAPI 的控制台输出没有 ERROR/WARN 前缀（那是它日志文件的格式，红色是它自己上色的），
-# 所以这里按内容 + 上下文判断级别，才能在应用内像 CMD 那样标红。
-ERROR_HINTS = (
-    "error", "failed", "failure", "exception", "crash", "could not", "cannot ", "can't ",
-    "unable to", "not found", "missing", "invalid", "conflict", "denied", "aborted",
-    "fatal", "no longer", "incompatible", "unexpected", "not loaded",
+HOST_FAIL_RE = re.compile(
+    r"hostpolicy\.dll|hostfxr|Failed to run as a self-contained app|did not specify a framework",
+    re.I,
 )
-WARN_HINTS = (
-    "warn", "deprecat", "ignored", "skipped", "unsupported", "outdated", "out-of-date",
-    "requires smapi", "not compatible", "may not work", "recommend", "but you have",
-    "not compatible", "out of date",
-)
-CONTEXT_BLOCK = (
-    "could not be added", "skipped mods", "these mods", "no longer compatible",
-    "consider updating", "error log",
-)
-
-
-class LevelTracker:
-    """按内容 + 上下文判断一行属于 error / warn / info（有状态）。"""
-
-    def __init__(self) -> None:
-        self.context = ""
-        self.remain = 0
-
-    def level(self, line: str) -> str:
-        text = line or ""
-        low = text.lower()
-        m = LEVEL_RE.search(text)
-        if m:
-            lv = m.group(1)
-            if lv in ("ERROR", "ALERT", "CRITICAL", "FATAL"):
-                return "error"
-            if lv in ("WARN", "WARNING"):
-                return "warn"
-            if lv in ("TRACE", "DEBUG"):
-                return "trace"
-            return "info"
-        stripped = text.strip()
-        indented = (
-            text.startswith((" ", "\t"))
-            or stripped.startswith(("-", "•"))
-            or bool(re.match(r"^\[[^\]]+\]\s+[-•]", text))   # [SMAPI]   - 条目
-            or "   " in text[:24]
-        )
-        if not indented:
-            # 新区块开始：清掉上一段上下文，免得把后面的行也染成红色
-            self.context = ""
-            self.remain = 0
-        for key in CONTEXT_BLOCK:
-            if key in low:
-                self.context = "warn" if key in ("skipped mods", "consider updating") else "error"
-                self.remain = 60
-                break
-        if self.remain > 0 and indented:
-            self.remain -= 1
-            if self.context:
-                return self.context
-        if any(h in low for h in ERROR_HINTS):
-            return "error"
-        if any(h in low for h in WARN_HINTS):
-            return "warn"
-        return "info"
-
-
-def classify(line: str) -> str:
-    """无状态快速判断（控制台以外的地方用）。"""
-    return LevelTracker().level(line)
 
 # 这些环境变量会干扰自包含 .NET 应用的宿主解析（hostpolicy.dll 报错的常见原因）
 DOTNET_NOISE = (

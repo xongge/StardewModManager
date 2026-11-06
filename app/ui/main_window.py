@@ -106,7 +106,8 @@ class MainWindow(QMainWindow):
         self.console_page = ConsolePage(self.ctx)
         self.updater_page = UpdaterPage(self.ctx, on_run=self._run_in_console)
         self.settings_page = SettingsPage(self.ctx, on_saved=self._after_save)
-        for page in (self.mods_page, self.console_page, self.updater_page, self.settings_page):
+        self.pages = [self.mods_page, self.console_page, self.updater_page, self.settings_page]
+        for page in self.pages:
             self.stack.addWidget(page)
         root.addWidget(self.stack, 1)
         self.setCentralWidget(central)
@@ -352,6 +353,11 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 return
             self.ctx.runner.stop()
+        for page in getattr(self, "pages", []):
+            try:
+                page.shutdown()
+            except Exception:  # noqa: BLE001
+                pass
         self.ctx.shutdown()
         event.accept()
 

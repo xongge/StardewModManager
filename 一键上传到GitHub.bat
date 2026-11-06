@@ -3,7 +3,7 @@ rem One-click upload to GitHub. Requires git for Windows.
 setlocal
 cd /d "%~dp0"
 set "REPO=https://github.com/xongge/StardewModManager.git"
-set "MSG=chore: release v1.4.2"
+set "MSG=chore: release v1.4.3"
 
 where git >nul 2>nul
 if errorlevel 1 (

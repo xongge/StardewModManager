@@ -16,6 +16,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from .core import http
+
 DEFAULT_REPO = "xongge/StardewModManager"
 API_LATEST = "https://api.github.com/repos/{repo}/releases/latest"
 CACHE_TTL = 6 * 3600
@@ -44,21 +46,18 @@ def fetch_latest(repo: str = DEFAULT_REPO, timeout: int = 15) -> dict:
     repo = (repo or DEFAULT_REPO).strip().strip("/")
     if repo.count("/") != 1:
         raise UpdateError(f"仓库地址不对：{repo}（应形如 用户名/仓库名）")
-    req = urllib.request.Request(
-        API_LATEST.format(repo=repo),
-        headers={"User-Agent": "StardewModManager", "Accept": "application/vnd.github+json"},
-    )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
-            data = json.loads(resp.read().decode("utf-8", "replace"))
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
+        data = http.fetch_json(
+            API_LATEST.format(repo=repo),
+            headers={"User-Agent": "StardewModManager", "Accept": "application/vnd.github+json"},
+            timeout=timeout,
+        )
+    except http.HttpError as exc:
+        if exc.status == 404:
             raise UpdateError("仓库里还没有发布 Release（或仓库地址写错了）") from exc
-        if exc.code == 403:
+        if exc.status == 403:
             raise UpdateError("GitHub 接口受限（匿名每小时 60 次），稍后再试") from exc
-        raise UpdateError(f"HTTP {exc.code}") from exc
-    except Exception as exc:  # noqa: BLE001
-        raise UpdateError(f"网络错误：{exc}") from exc
+        raise UpdateError(str(exc)) from exc
 
     tag = str(data.get("tag_name") or data.get("name") or "").lstrip("vV")
     assets = [
@@ -88,36 +87,19 @@ def fetch_latest(repo: str = DEFAULT_REPO, timeout: int = 15) -> dict:
 
 def download_asset(url: str, dest, progress=None, should_stop=None,
                    timeout: int = 30, chunk: int = 262144):
-    """把 Release 附件下载到本地，边下边回调进度（0~1）。"""
-    dest = Path(dest)
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    req = urllib.request.Request(url, headers={"User-Agent": "StardewModManager"})
-    got = 0
-    total = 0
+    """把 Release 附件下载到本地；progress 回调是 0~1 的浮点。"""
+    fraction = None
+    if progress is not None:
+        def fraction(got, total):  # noqa: ANN001
+            try:
+                progress(min(1.0, got / total) if total else 0.0)
+            except Exception:  # noqa: BLE001
+                pass
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
-            total = int(resp.headers.get("Content-Length") or 0)
-            with open(dest, "wb") as fh:
-                while True:
-                    if should_stop is not None and should_stop():
-                        raise UpdateError("已取消下载")
-                    block = resp.read(chunk)
-                    if not block:
-                        break
-                    fh.write(block)
-                    got += len(block)
-                    if progress is not None and total:
-                        try:
-                            progress(min(1.0, got / total))
-                        except Exception:  # noqa: BLE001
-                            pass
-    except UpdateError:
-        raise
-    except Exception as exc:  # noqa: BLE001
-        raise UpdateError(f"下载失败：{exc}") from exc
-    if total and got < total:
-        raise UpdateError(f"下载不完整（{got}/{total} 字节）")
-    return dest
+        return http.download(url, dest, progress=fraction, should_stop=should_stop,
+                             timeout=timeout, chunk=chunk)
+    except http.HttpError as exc:
+        raise UpdateError(str(exc)) from exc
 
 
 class AppUpdateCache:

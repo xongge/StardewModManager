@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 
 from ... import smapi
 from ...config import config_dir
+from ..page_base import PageBase
 from ..theme import C
 
 
@@ -124,7 +125,7 @@ class InstallWorker(QThread):
             self.done.emit("", str(exc))
 
 
-class UpdaterPage(QWidget):
+class UpdaterPage(PageBase):
     def __init__(self, ctx, on_run=None, parent=None):
         super().__init__(parent)
         self.ctx = ctx
